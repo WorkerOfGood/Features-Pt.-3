@@ -1,0 +1,94 @@
+(function() {
+  'use strict';
+
+  let remoteAnswers = [];
+
+  function runAutoAssignment() {
+    if (!localStorage.getItem("AutoAssignment")?.includes("true")) return;
+    const activityTitle = document.getElementById("activity-title")?.innerText;
+    if (activityTitle?.includes("Assignment")) {
+      fetchRemoteAnswers().then(() => {
+        fillAndSubmitAnswers();
+        showStatusOverlay("AutoAssignment: submitted");
+      });
+    }
+  }
+
+  function fetchRemoteAnswers() {
+    const videoContainer = window.frames[0].document.getElementById("home_video_container");
+    if (videoContainer?.parentNode.style.opacity === "1") return Promise.resolve();
+
+    const url1 = "https://gist.githubusercontent.com/TallTacoTristan/48cefe0053b36a796f52779936b23f8f/raw/AnswersV2_Part1";
+    const url2 = "https://gist.githubusercontent.com/TallTacoTristan/5fa989759dca024a86b0d98cc9a17cea/raw/AnswersV2_Part2";
+
+    return Promise.all([fetch(url1), fetch(url2)])
+      .then(([res1, res2]) => Promise.all([res1.text(), res2.text()]))
+      .then(([text1, text2]) => {
+        remoteAnswers = (text1.trim() + "\n" + text2.trim())
+          .split("\n")
+          .map(s => s.trim())
+          .filter(Boolean);
+      })
+      .catch(err => console.warn("Failed to load remote answers:", err));
+  }
+
+  function fillAndSubmitAnswers() {
+    try {
+      const frame = window.frames[0].frames[0].frames[0];
+      const doc = frame.document;
+
+      const textArea = doc.querySelector(".QuestionTextArea");
+      if (textArea && textArea.value === "") {
+        const choices = doc.querySelectorAll(".answer-choice-label");
+        const filledText = Array.from(choices).map(c => c.textContent.trim()).join(" | ");
+
+        // Match with remote answers if possible
+        const matched = remoteAnswers.find(ans => filledText.includes(ans));
+        textArea.value = matched || filledText;
+
+        frame.API.Frame.check();
+      }
+
+      const buttons = doc.querySelectorAll(".answer-choice-button");
+      buttons.forEach(btn => btn.click());
+
+      const doneBtns = doc.querySelectorAll(".done-start, .done-retry");
+      doneBtns.forEach(btn => setTimeout(() => btn.click(), 300));
+    } catch (err) {
+      console.error("AutoAssignment error:", err);
+    }
+  }
+
+  function showStatusOverlay(message) {
+    const existing = document.getElementById("autoAssignmentStatus");
+    if (existing) existing.remove();
+    const div = document.createElement("div");
+    div.id = "autoAssignmentStatus";
+    div.textContent = message;
+    div.style.position = "fixed";
+    div.style.bottom = "20px";
+    div.style.right = "20px";
+    div.style.padding = "10px 20px";
+    div.style.background = "#222";
+    div.style.color = "#0f0";
+    div.style.zIndex = "9999";
+    div.style.fontSize = "14px";
+    div.style.borderRadius = "8px";
+    div.style.boxShadow = "0 0 8px #0f0";
+    document.body.appendChild(div);
+    setTimeout(() => div.remove(), 5000);
+  }
+
+  function initAutoAssignment() {
+    if (!localStorage.getItem("AutoAssignment")?.includes("true")) return;
+    setTimeout(() => {
+      const activity = document.getElementById("activity-title")?.textContent ?? "";
+      const video = document.getElementById("homeVideoContainer")?.parentNode?.style?.opacity;
+      if (activity.includes("Assignment") && !activity.includes("Lab") && video !== "1") {
+        runAutoAssignment();
+      }
+    }, 3500);
+  }
+
+  initAutoAssignment();
+})();
