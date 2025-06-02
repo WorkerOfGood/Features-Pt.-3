@@ -1,0 +1,10 @@
+(function() {
+    'use strict';
+
+    window.addEventListener('load', () => {
+        const userLinks = document.querySelectorAll('a.nav.dave');
+        userLinks.forEach(link => {
+            link.style.filter = 'blur(5px)';
+        });
+    });
+})();
